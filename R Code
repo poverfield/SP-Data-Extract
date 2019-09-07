@@ -1,0 +1,55 @@
+first.date <- Sys.Date() - 300
+last.date <- Sys.Date()
+
+# To geto sp500
+SP500 = GetSP500Stocks()
+tickers = SP500[,1] # Pull in tickers
+#tickers = sample(tickers, 100) #randomly choose  5sp500 tickers, for testing
+tickers = append(tickers, 'ERIC')
+
+# Query data
+DATA_query <- BatchGetSymbols(tickers = tickers, 
+                              first.date = first.date,
+                              last.date = last.date, 
+                              cache.folder = file.path(tempdir(), 
+                                                       'BGS_Cache') ) # cache in tempdir()
+
+x = nrow(DATA_query[[1]]) # define number of stocks analyzing
+
+# get succesful ticker list from DATA_query[[1]] == 'keep'
+S = matrix(data = NA, ncol = 1, nrow = x)
+for(i in 1:x){
+  if(DATA_query[[1]][i,6] == 'KEEP'){
+    S[i] = toString(DATA_query[[1]][i,1])
+  }
+}
+S = S[which(!is.na(S))] # remove NAs
+x = length(S)
+start_date = matrix(data = NA, ncol = x, nrow = 1)
+
+DATA = list() #aggregate data into lists
+for(i in 1:x){
+  DATA[[i]] = DATA_query[[2]][which(DATA_query[[2]][,8] == S[i]),c(1:4,7)]
+  if(DATA[[i]][nrow(DATA[[i]])-1,5] == DATA[[i]][nrow(DATA[[i]]),5]){
+    DATA[[i]] = DATA[[i]][1:(nrow(DATA[[i]])-1),]
+    print('Duplicate last date')
+  }
+  if(any(is.na(DATA[[i]]))){  # NAs = mean of t +/- 1
+    na = which(is.na(DATA[[i]]), arr.ind = TRUE) # get NA locations (row, column)
+    for(j in 1:nrow(na)){
+      DATA[[i]][na[j,1], na[j,2]] = mean(c(DATA[[i]][na[j,1]-1, na[j,2]], DATA[[i]][na[j,1]+1, na[j,2]]))
+    }
+  }
+  start_date[i] = DATA[[i]][1,5]
+}
+names(DATA) = S # name each df in list
+# Unify lenghts -> have all matrices start at most recent start date
+for(i in 1:x){
+  if(start_date[i] != max(start_date)){
+    DATA[[i]] = DATA[[i]][-1,]
+  }
+}
+
+# Get list of successfule tickers
+tickers = names(DATA)
+
