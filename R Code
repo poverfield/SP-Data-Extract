@@ -53,3 +53,53 @@ for(i in 1:x){
 # Get list of successfule tickers
 tickers = names(DATA)
 
+
+df = DATA[[i]]
+etf_name = tickers[i]
+# SMA Cross
+long = 50
+short = 20
+sma_long = na.omit(SMA(df$price.close, long))
+sma_short = na.omit(SMA(df$price.close, short))
+  
+  
+# MACD
+macd = na.omit(MACD(df$price.close, nFast = 12, nSlow = 26, nSig = 9, percent = TRUE))
+
+  
+#RSI Bands
+rsi = na.omit(RSI(df$price.close, n = 14))
+rsi_sd = rollapply(rsi, 20, sd, na.rm = TRUE) # caluclate standard deviation
+rsi_mean = rollapply(rsi, 20, mean, na.rm = TRUE) # calc mean for rsi
+rsi = rsi[(length(rsi) - length(rsi_sd) + 1):length(rsi)] # shorten rsi to match sd and mean length
+rsi_lower = rsi_mean - rsi_sd # calc lower rsi band
+rsi_upper = rsi_mean + rsi_sd # calc upper rsi band
+rsi = cbind(rsi, rsi_mean, rsi_upper, rsi_lower)
+  
+# Stochastic RSI
+stoch_rsi = na.omit(stoch(rsi[,1], nFastK = 14, nFastD = 3, sSlowD = 3, bounded = TRUE, smooth = 1))
+
+  
+# Donchian
+donchian = na.omit(DonchianChannel(df[, 2:3], n = 10, include.lag = FALSE))
+  
+bbands = na.omit(BBands(df[,2:4], n = 20))
+  
+  
+# standardize length of data
+new_length = min(length(sma_long),
+                 length(sma_short),
+                 length(macd[,1]),
+                 length(rsi[,1]),
+                 length(stoch_rsi[,1]),
+                 length(donchian[,1]),
+                 length(bbands[,1]))
+df = df[(nrow(df) - new_length + 1):nrow(df),]
+sma_long = sma_long[(length(sma_long) - new_length + 1):length(sma_long)]
+sma_short = sma_short[(length(sma_short) - new_length + 1):length(sma_short)]
+macd = macd[(nrow(macd) - new_length + 1):nrow(macd),]
+rsi = rsi[(nrow(rsi) - new_length + 1):nrow(rsi),]
+stoch_rsi = stoch_rsi[(nrow(stoch_rsi) - new_length + 1):nrow(stoch_rsi),]
+donchian = donchian[(nrow(donchian) - new_length + 1):nrow(donchian),]
+bbands = bbands[(nrow(bbands) - new_length + 1):nrow(bbands),]
+ 
